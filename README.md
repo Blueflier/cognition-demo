@@ -10,7 +10,7 @@ This is a fork of [OpenClaw](https://github.com/openclaw/openclaw) I built to sh
 > - Trigger a Devin session to scope the issue and assign a confidence score
 > - Trigger a session to take the action plan and complete the ticket
 
-## What We Built
+## What I Built
 
 A three-stage pipeline that goes from raw GitHub issue to completed pull request:
 
@@ -37,9 +37,17 @@ Developers can review the action plan and kick off a Devin agent to:
 - Execute the plan
 - Open a new PR against the repo (since I'm not a maintainer on the upstream repo, PRs are created without a linked issue for demo purposes)
 
+## Playbook & Structured Output
+
+Each Devin session uses a **repeatable playbook** that enforces structured output — consistent action plans, confidence scores, and PR descriptions across every issue. This makes results predictable and easy to compare regardless of which agent handled the ticket.
+
 ## Sessions (Snapshots)
 
 I used Devin's **session snapshots** to demonstrate how an enterprise could spin up **multiple agents in parallel** — each working on a different issue simultaneously. This models a real-world scenario where a team triages a backlog and fans out automated work across many tickets at once.
+
+### Workaround: Session ID instead of Snapshot ID
+
+Snapshots (starting a new Devin machine from a pre-built environment) require the Enterprise plan, which I didn't have access to. The workaround was to pass a **session ID** instead of a snapshot ID when spinning up new Devin machines. This way each agent inherits the repo clone and codebase context from a prior session, avoiding the overhead of re-cloning and re-indexing the repository every time.
 
 ## Architecture Overview
 
