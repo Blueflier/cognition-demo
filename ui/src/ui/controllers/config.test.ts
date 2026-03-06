@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   applyConfigSnapshot,
   applyConfig,
+  loadConfig,
+  loadConfigSchema,
   runUpdate,
   saveConfig,
   updateConfigFormValue,
@@ -269,6 +271,87 @@ describe("saveConfig", () => {
     };
     expect(parsed.gateway.port).toBe("18789");
     expect(params.baseHash).toBe("hash-save-2");
+  });
+});
+
+describe("loadConfig retry", () => {
+  it("schedules retry when client exists but not connected", async () => {
+    vi.useFakeTimers();
+    const request = vi.fn().mockResolvedValue({ config: {}, valid: true, issues: [], raw: "{}" });
+    const state = createState();
+    state.client = { request } as unknown as ConfigState["client"];
+    state.connected = false;
+
+    await loadConfig(state);
+
+    expect(request).not.toHaveBeenCalled();
+    expect(state.configForm).toBeNull();
+
+    // Simulate connection becoming available before retry fires
+    state.connected = true;
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(request).toHaveBeenCalledWith("config.get", {});
+    expect(state.configForm).toEqual({});
+    vi.useRealTimers();
+  });
+
+  it("does not retry when client is null", async () => {
+    vi.useFakeTimers();
+    const state = createState();
+    state.client = null;
+    state.connected = false;
+
+    await loadConfig(state);
+
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(state.configForm).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it("stops retrying after max attempts", async () => {
+    vi.useFakeTimers();
+    const request = vi.fn().mockResolvedValue({ config: {}, valid: true, issues: [], raw: "{}" });
+    const state = createState();
+    state.client = { request } as unknown as ConfigState["client"];
+    state.connected = false;
+
+    await loadConfig(state);
+
+    // Advance through all 10 retries (500ms each)
+    for (let i = 0; i < 11; i++) {
+      await vi.advanceTimersByTimeAsync(500);
+    }
+
+    // Still not connected, should have given up
+    expect(request).not.toHaveBeenCalled();
+    expect(state.configForm).toBeNull();
+    vi.useRealTimers();
+  });
+});
+
+describe("loadConfigSchema retry", () => {
+  it("schedules retry when client exists but not connected", async () => {
+    vi.useFakeTimers();
+    const request = vi
+      .fn()
+      .mockResolvedValue({ schema: { type: "object" }, uiHints: {}, version: "1" });
+    const state = createState();
+    state.client = { request } as unknown as ConfigState["client"];
+    state.connected = false;
+
+    await loadConfigSchema(state);
+
+    expect(request).not.toHaveBeenCalled();
+    expect(state.configSchema).toBeNull();
+
+    // Simulate connection becoming available before retry fires
+    state.connected = true;
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(request).toHaveBeenCalledWith("config.schema", {});
+    expect(state.configSchema).toEqual({ type: "object" });
+    vi.useRealTimers();
   });
 });
 
