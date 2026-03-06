@@ -1,6 +1,6 @@
 # Cognition Demo — Devin + GitHub Issues Automation
 
-This is a fork of [OpenClaw](https://github.com/openclaw/openclaw) used to showcase **Devin's ability to diagnose issues and create tickets automatically**. The repo serves as a real-world codebase for demonstrating an end-to-end GitHub Issues integration powered by AI agents.
+This is a fork of [OpenClaw](https://github.com/openclaw/openclaw) I built to showcase **Devin's ability to diagnose issues and create tickets automatically**. The repo serves as a real-world codebase for demonstrating an end-to-end GitHub Issues integration powered by AI agents.
 
 ## The Prompt
 
@@ -35,12 +35,11 @@ A Devin session is triggered per issue to:
 Developers can review the action plan and kick off a Devin agent to:
 
 - Execute the plan
-- Open a PR against the repo
-- Link the PR back to the original issue
+- Open a new PR against the repo (since I'm not a maintainer on the upstream repo, PRs are created without a linked issue for demo purposes)
 
 ## Sessions (Snapshots)
 
-We used Devin's **session snapshots** to demonstrate how an enterprise could spin up **multiple agents in parallel** — each working on a different issue simultaneously. This models a real-world scenario where a team triages a backlog and fans out automated work across many tickets at once.
+I used Devin's **session snapshots** to demonstrate how an enterprise could spin up **multiple agents in parallel** — each working on a different issue simultaneously. This models a real-world scenario where a team triages a backlog and fans out automated work across many tickets at once.
 
 ## Architecture Overview
 
@@ -57,9 +56,9 @@ Devin Session: Scope + Confidence Score + Action Plan
 Developer Review
      |
      v
-Devin Session: Execute Plan -> Open PR
+Devin Session: Execute Plan -> Open PR (no linked issue)
 ```
 
 ## About the Base Repo
 
-The underlying codebase is [OpenClaw](https://github.com/openclaw/openclaw), an open-source AI gateway and agent platform. We chose it as a non-trivial, real-world TypeScript project to make the demo realistic — the issues Devin works on are actual bugs and features against a production codebase.
+The underlying codebase is [OpenClaw](https://github.com/openclaw/openclaw), an open-source AI gateway and agent platform. I chose it as a non-trivial, real-world TypeScript project to make the demo realistic — the issues Devin works on are actual bugs and features against a production codebase.
