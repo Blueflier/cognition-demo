@@ -49,6 +49,12 @@ I used Devin's **session snapshots** to demonstrate how an enterprise could spin
 
 Snapshots (starting a new Devin machine from a pre-built environment) require the Enterprise plan, which I didn't have access to. The workaround was to pass a **session ID** instead of a snapshot ID when spinning up new Devin machines. This way each agent inherits the repo clone and codebase context from a prior session, avoiding the overhead of re-cloning and re-indexing the repository every time.
 
+## Problems Encountered
+
+### Session Status Inconsistency
+
+When kicking off sessions via the Devin API, I ran into difficulty reliably detecting session state. Sometimes when Devin was waiting for user input, the status would report as `"running"`; other times under the exact same condition it would report as `"exit"`. The top-level `status` field alone wasn't enough to understand what was actually happening. The fix was to look at `status_detail`, which gives a more granular view of what's going on under the hood (e.g. whether Devin is blocked on user input vs. genuinely finished).
+
 ## Architecture Overview
 
 ```
