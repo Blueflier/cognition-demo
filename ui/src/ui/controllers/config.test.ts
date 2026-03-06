@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   applyConfigSnapshot,
   applyConfig,
+  loadConfig,
+  loadConfigSchema,
   runUpdate,
   saveConfig,
   updateConfigFormValue,
@@ -45,6 +47,130 @@ function createRequestWithConfigGet() {
     return {};
   });
 }
+
+describe("loadConfig", () => {
+  it("schedules a retry when client exists but not connected", () => {
+    vi.useFakeTimers();
+    const request = vi.fn();
+    const state = createState();
+    state.client = { request } as unknown as ConfigState["client"];
+    state.connected = false;
+
+    void loadConfig(state);
+
+    expect(request).not.toHaveBeenCalled();
+    expect(state.configForm).toBeNull();
+
+    // Simulate connection becoming available before retry fires
+    state.connected = true;
+    request.mockResolvedValue({
+      config: { gateway: { mode: "local" } },
+      valid: true,
+      issues: [],
+      raw: "{}",
+    });
+
+    vi.advanceTimersByTime(1000);
+
+    // The retry should have been scheduled and fired
+    expect(request).toHaveBeenCalledWith("config.get", {});
+    vi.useRealTimers();
+  });
+
+  it("does not retry when client is null", () => {
+    vi.useFakeTimers();
+    const state = createState();
+    state.client = null;
+    state.connected = false;
+
+    void loadConfig(state);
+
+    vi.advanceTimersByTime(6000);
+    // Nothing should happen — no client means no retry
+    expect(state.configForm).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it("stops retrying after max attempts", () => {
+    vi.useFakeTimers();
+    const request = vi.fn();
+    const state = createState();
+    state.client = { request } as unknown as ConfigState["client"];
+    state.connected = false;
+
+    void loadConfig(state);
+
+    // Advance through 5 retries (max) — connection never established
+    for (let i = 0; i < 6; i++) {
+      vi.advanceTimersByTime(1000);
+    }
+
+    // request should never have been called since connected stayed false
+    expect(request).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("loads config immediately when already connected", async () => {
+    const request = vi.fn().mockResolvedValue({
+      config: { gateway: { mode: "local" } },
+      valid: true,
+      issues: [],
+      raw: "{}",
+    });
+    const state = createState();
+    state.client = { request } as unknown as ConfigState["client"];
+    state.connected = true;
+
+    await loadConfig(state);
+
+    expect(request).toHaveBeenCalledWith("config.get", {});
+    expect(state.configForm).toEqual({ gateway: { mode: "local" } });
+  });
+});
+
+describe("loadConfigSchema", () => {
+  it("schedules a retry when client exists but not connected", () => {
+    vi.useFakeTimers();
+    const request = vi.fn();
+    const state = createState();
+    state.client = { request } as unknown as ConfigState["client"];
+    state.connected = false;
+
+    void loadConfigSchema(state);
+
+    expect(request).not.toHaveBeenCalled();
+
+    // Simulate connection becoming available before retry fires
+    state.connected = true;
+    request.mockResolvedValue({
+      schema: { type: "object" },
+      uiHints: {},
+      version: "1.0",
+    });
+
+    vi.advanceTimersByTime(1000);
+
+    expect(request).toHaveBeenCalledWith("config.schema", {});
+    vi.useRealTimers();
+  });
+
+  it("loads schema immediately when already connected", async () => {
+    const request = vi.fn().mockResolvedValue({
+      schema: { type: "object" },
+      uiHints: { foo: "bar" },
+      version: "2.0",
+    });
+    const state = createState();
+    state.client = { request } as unknown as ConfigState["client"];
+    state.connected = true;
+
+    await loadConfigSchema(state);
+
+    expect(request).toHaveBeenCalledWith("config.schema", {});
+    expect(state.configSchema).toEqual({ type: "object" });
+    expect(state.configSchemaVersion).toBe("2.0");
+  });
+});
 
 describe("applyConfigSnapshot", () => {
   it("does not clobber form edits while dirty", () => {
