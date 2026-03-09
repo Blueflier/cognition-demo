@@ -3,7 +3,7 @@ import { loadConfig } from "../../config/config.js";
 import { resolveIsNixMode } from "../../config/paths.js";
 import { checkTokenDrift } from "../../daemon/service-audit.js";
 import type { GatewayService } from "../../daemon/service.js";
-import { renderSystemdUnavailableHints } from "../../daemon/systemd-hints.js";
+import { isHeadlessDbusError, renderSystemdUnavailableHints } from "../../daemon/systemd-hints.js";
 import { isSystemdUserServiceAvailable } from "../../daemon/systemd.js";
 import {
   isGatewaySecretRefUnavailableError,
@@ -30,7 +30,7 @@ type RestartPostCheckContext = {
   fail: (message: string, hints?: string[]) => void;
 };
 
-async function maybeAugmentSystemdHints(hints: string[]): Promise<string[]> {
+async function maybeAugmentSystemdHints(hints: string[], detail?: string): Promise<string[]> {
   if (process.platform !== "linux") {
     return hints;
   }
@@ -38,7 +38,8 @@ async function maybeAugmentSystemdHints(hints: string[]): Promise<string[]> {
   if (systemdAvailable) {
     return hints;
   }
-  return [...hints, ...renderSystemdUnavailableHints({ wsl: await isWSL() })];
+  const headless = isHeadlessDbusError(detail);
+  return [...hints, ...renderSystemdUnavailableHints({ wsl: await isWSL(), headless })];
 }
 
 function createActionIO(params: { action: DaemonAction; json: boolean }) {
