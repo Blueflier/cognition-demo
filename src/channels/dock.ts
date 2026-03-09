@@ -547,6 +547,28 @@ const DOCKS: Record<ChatChannelId, ChannelDock> = {
         buildIMessageThreadToolContext({ context, hasRepliedRef }),
     },
   },
+  dingtalk: {
+    id: "dingtalk",
+    capabilities: {
+      chatTypes: ["direct", "group"],
+      media: true,
+      blockStreaming: true,
+    },
+    outbound: DEFAULT_OUTBOUND_TEXT_CHUNK_LIMIT_4000,
+    config: {
+      resolveAllowFrom: ({ cfg }) => {
+        const channel = cfg.channels?.dingtalk as
+          | { allowFrom?: Array<string | number> }
+          | undefined;
+        return (channel?.allowFrom ?? []).map((entry) => String(entry));
+      },
+      formatAllowFrom: ({ allowFrom }) => formatLower(allowFrom),
+    },
+    threading: {
+      buildToolContext: ({ context, hasRepliedRef }) =>
+        buildThreadToolContextFromMessageThreadOrReply({ context, hasRepliedRef }),
+    },
+  },
 };
 
 function buildDockFromPlugin(plugin: ChannelPlugin): ChannelDock {

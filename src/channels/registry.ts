@@ -13,6 +13,7 @@ export const CHAT_CHANNEL_ORDER = [
   "slack",
   "signal",
   "imessage",
+  "dingtalk",
 ] as const;
 
 export type ChatChannelId = (typeof CHAT_CHANNEL_ORDER)[number];
@@ -107,6 +108,16 @@ const CHAT_CHANNEL_META: Record<ChatChannelId, ChannelMeta> = {
     blurb: "this is still a work in progress.",
     systemImage: "message.fill",
   },
+  dingtalk: {
+    id: "dingtalk",
+    label: "DingTalk",
+    selectionLabel: "DingTalk (Bot API)",
+    detailLabel: "DingTalk Bot",
+    docsPath: "/channels/dingtalk",
+    docsLabel: "dingtalk",
+    blurb: "enterprise messaging popular in China; bot via Open Platform.",
+    systemImage: "message.badge",
+  },
 };
 
 export const CHAT_CHANNEL_ALIASES: Record<string, ChatChannelId> = {
@@ -114,6 +125,8 @@ export const CHAT_CHANNEL_ALIASES: Record<string, ChatChannelId> = {
   "internet-relay-chat": "irc",
   "google-chat": "googlechat",
   gchat: "googlechat",
+  "ding-talk": "dingtalk",
+  dingding: "dingtalk",
 };
 
 const normalizeChannelKey = (raw?: string | null): string | undefined => {
