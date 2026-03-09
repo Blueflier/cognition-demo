@@ -166,6 +166,7 @@ openclaw gateway uninstall
 
 Notes:
 
+- On headless Linux servers (EC2, GCP, Azure VMs), `gateway install` and `gateway status` may fail with "Failed to connect to bus: No medium found" if the D-Bus session bus is unavailable. See [/gateway/doctor#headless-servers-ec2-gcp-azure-vms](/gateway/doctor#headless-servers-ec2-gcp-azure-vms) for the fix.
 - `gateway install` supports `--port`, `--runtime`, `--token`, `--force`, `--json`.
 - When token auth requires a token and `gateway.auth.token` is SecretRef-managed, `gateway install` validates that the SecretRef is resolvable but does not persist the resolved token into service environment metadata.
 - If token auth requires a token and the configured token SecretRef is unresolved, install fails closed instead of persisting fallback plaintext.

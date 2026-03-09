@@ -231,6 +231,20 @@ when a policy is configured in a dangerous way.
 If running as a systemd user service, doctor ensures lingering is enabled so the
 gateway stays alive after logout.
 
+#### Headless servers (EC2, GCP, Azure VMs)
+
+On headless servers accessed via SSH, `systemctl --user` may fail with
+"Failed to connect to bus: No medium found" because the D-Bus session bus
+is not available. OpenClaw detects this and prints actionable instructions:
+
+```bash
+sudo loginctl enable-linger $(whoami)
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+```
+
+Add the `export` to `~/.bashrc` (or equivalent) so it persists across sessions.
+OpenClaw also auto-sets `XDG_RUNTIME_DIR` when `/run/user/<uid>` exists.
+
 ### 11) Skills status
 
 Doctor prints a quick summary of eligible/missing/blocked skills for the current

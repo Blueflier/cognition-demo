@@ -1,3 +1,4 @@
+import { accessSync, constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -221,6 +222,16 @@ async function execSystemctlUser(
   env: GatewayServiceEnv,
   args: string[],
 ): Promise<{ stdout: string; stderr: string; code: number }> {
+  // Transparently set XDG_RUNTIME_DIR when unset but /run/user/<uid> exists.
+  // This fixes headless server environments (EC2, GCP, Azure) where SSH sessions
+  // don't automatically set up the D-Bus session bus environment.
+  if (!process.env.XDG_RUNTIME_DIR) {
+    const probed = probeXdgRuntimeDir();
+    if (probed) {
+      process.env.XDG_RUNTIME_DIR = probed;
+    }
+  }
+
   const machineUser = resolveSystemctlMachineScopeUser(env);
   const sudoUser = env.SUDO_USER?.trim();
 
@@ -278,6 +289,23 @@ export async function isSystemdUserServiceAvailable(
   return false;
 }
 
+/**
+ * Check whether `/run/user/<uid>` exists and is accessible.
+ * Used to transparently set XDG_RUNTIME_DIR on headless servers.
+ */
+function probeXdgRuntimeDir(): string | null {
+  if (typeof process.getuid !== "function") {
+    return null;
+  }
+  const candidate = `/run/user/${process.getuid()}`;
+  try {
+    accessSync(candidate, fsConstants.R_OK);
+    return candidate;
+  } catch {
+    return null;
+  }
+}
+
 async function assertSystemdAvailable(env: GatewayServiceEnv = process.env as GatewayServiceEnv) {
   const res = await execSystemctlUser(env, ["status"]);
   if (res.code === 0) {
@@ -287,6 +315,31 @@ async function assertSystemdAvailable(env: GatewayServiceEnv = process.env as Ga
   if (isSystemctlMissing(detail)) {
     throw new Error("systemctl not available; systemd user services are required on Linux.");
   }
+
+  // Detect headless D-Bus / XDG_RUNTIME_DIR failures and provide actionable guidance.
+  const normalizedDetail = detail.toLowerCase();
+  const isDbusFailure =
+    normalizedDetail.includes("failed to connect to bus") ||
+    normalizedDetail.includes("no medium found") ||
+    normalizedDetail.includes("dbus_session_bus_address") ||
+    normalizedDetail.includes("xdg_runtime_dir");
+
+  if (isDbusFailure) {
+    const lines = [
+      `systemctl --user unavailable: ${detail}`,
+      "",
+      "This typically happens on headless servers (EC2, GCP, Azure VMs) where the",
+      "D-Bus session bus is not available for the current user.",
+      "",
+      "Fix:",
+      "  sudo loginctl enable-linger $(whoami)",
+      "  export XDG_RUNTIME_DIR=/run/user/$(id -u)",
+      "",
+      "Add the export to ~/.bashrc (or equivalent) to persist across sessions.",
+    ];
+    throw new Error(lines.join("\n"));
+  }
+
   throw new Error(`systemctl --user unavailable: ${detail || "unknown error"}`.trim());
 }
 

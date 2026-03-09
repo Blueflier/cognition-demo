@@ -7,6 +7,7 @@ import {
 import { renderGatewayServiceCleanupHints } from "../../daemon/inspect.js";
 import { resolveGatewayLogPaths } from "../../daemon/launchd.js";
 import {
+  isHeadlessDbusError,
   isSystemdUnavailableDetail,
   renderSystemdUnavailableHints,
 } from "../../daemon/systemd-hints.js";
@@ -197,8 +198,9 @@ export function printDaemonStatus(status: DaemonStatus, opts: { json: boolean })
   const systemdUnavailable =
     process.platform === "linux" && isSystemdUnavailableDetail(service.runtime?.detail);
   if (systemdUnavailable) {
+    const headless = isHeadlessDbusError(service.runtime?.detail);
     defaultRuntime.error(errorText("systemd user services unavailable."));
-    for (const hint of renderSystemdUnavailableHints({ wsl: isWSLEnv() })) {
+    for (const hint of renderSystemdUnavailableHints({ wsl: isWSLEnv(), headless })) {
       defaultRuntime.error(errorText(hint));
     }
     spacer();

@@ -7,6 +7,11 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { splitArgsPreservingQuotes } from "./arg-split.js";
+import {
+  isHeadlessDbusError,
+  isSystemdUnavailableDetail,
+  renderSystemdUnavailableHints,
+} from "./systemd-hints.js";
 import { parseSystemdExecStart } from "./systemd-unit.js";
 import {
   isSystemdUserServiceAvailable,
@@ -137,6 +142,122 @@ describe("isSystemdServiceEnabled", () => {
     });
     const result = await isSystemdServiceEnabled({ env: {} });
     expect(result).toBe(false);
+  });
+});
+
+describe("headless D-Bus detection (systemd-hints)", () => {
+  it("detects 'No medium found' as a headless D-Bus error", () => {
+    expect(
+      isHeadlessDbusError(
+        "systemctl --user unavailable: Failed to connect to bus: No medium found",
+      ),
+    ).toBe(true);
+  });
+
+  it("detects 'Failed to connect to bus' as a headless D-Bus error", () => {
+    expect(isHeadlessDbusError("Failed to connect to bus")).toBe(true);
+  });
+
+  it("detects XDG_RUNTIME_DIR mention as a headless D-Bus error", () => {
+    expect(
+      isHeadlessDbusError(
+        "Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false for 'not been booted with systemd'", () => {
+    expect(isHeadlessDbusError("System has not been booted with systemd")).toBe(false);
+  });
+
+  it("returns false for undefined/empty detail", () => {
+    expect(isHeadlessDbusError(undefined)).toBe(false);
+    expect(isHeadlessDbusError("")).toBe(false);
+  });
+
+  it("isSystemdUnavailableDetail detects all known error patterns", () => {
+    expect(
+      isSystemdUnavailableDetail(
+        "systemctl --user unavailable: Failed to connect to bus: No medium found",
+      ),
+    ).toBe(true);
+    expect(isSystemdUnavailableDetail("systemctl not available")).toBe(true);
+    expect(isSystemdUnavailableDetail("System has not been booted with systemd")).toBe(true);
+  });
+});
+
+describe("renderSystemdUnavailableHints", () => {
+  it("renders headless-specific hints when headless=true", () => {
+    const hints = renderSystemdUnavailableHints({ headless: true });
+    const joined = hints.join("\n");
+    expect(joined).toContain("D-Bus session bus not found");
+    expect(joined).toContain("sudo loginctl enable-linger");
+    expect(joined).toContain("export XDG_RUNTIME_DIR");
+    expect(joined).toContain("EC2");
+  });
+
+  it("renders generic hints when headless=false", () => {
+    const hints = renderSystemdUnavailableHints({ headless: false });
+    const joined = hints.join("\n");
+    expect(joined).toContain("install/enable systemd");
+    expect(joined).not.toContain("D-Bus session bus not found");
+  });
+
+  it("renders WSL hints when wsl=true (takes priority over headless)", () => {
+    const hints = renderSystemdUnavailableHints({ wsl: true, headless: true });
+    const joined = hints.join("\n");
+    expect(joined).toContain("WSL2");
+    expect(joined).not.toContain("D-Bus session bus not found");
+  });
+});
+
+describe("assertSystemdAvailable headless error", () => {
+  beforeEach(() => {
+    execFileMock.mockReset();
+  });
+
+  it("throws actionable D-Bus error when 'No medium found' is returned", async () => {
+    const { installSystemdService } = await import("./systemd.js");
+    execFileMock.mockImplementation(
+      (_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+        const err = new Error("Failed to connect to bus: No medium found") as Error & {
+          stderr?: string;
+          code?: number;
+        };
+        err.stderr = "Failed to connect to bus: No medium found";
+        err.code = 1;
+        cb(err, "", "");
+      },
+    );
+    await expect(
+      installSystemdService({
+        env: {},
+        stdout: { write: vi.fn() } as unknown as NodeJS.WritableStream,
+        programArguments: ["openclaw", "gateway", "start"],
+      }),
+    ).rejects.toThrow(/D-Bus session bus/);
+  });
+
+  it("includes fix instructions in the headless D-Bus error", async () => {
+    const { installSystemdService } = await import("./systemd.js");
+    execFileMock.mockImplementation(
+      (_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+        const err = new Error("Failed to connect to bus: No medium found") as Error & {
+          stderr?: string;
+          code?: number;
+        };
+        err.stderr = "Failed to connect to bus: No medium found";
+        err.code = 1;
+        cb(err, "", "");
+      },
+    );
+    await expect(
+      installSystemdService({
+        env: {},
+        stdout: { write: vi.fn() } as unknown as NodeJS.WritableStream,
+        programArguments: ["openclaw", "gateway", "start"],
+      }),
+    ).rejects.toThrow(/sudo loginctl enable-linger/);
   });
 });
 
