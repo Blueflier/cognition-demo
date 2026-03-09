@@ -1,4 +1,5 @@
 import { listChannelPlugins } from "../../channels/plugins/index.js";
+import { dingtalkOnboardingAdapter } from "../../channels/plugins/onboarding/dingtalk.js";
 import { discordOnboardingAdapter } from "../../channels/plugins/onboarding/discord.js";
 import { imessageOnboardingAdapter } from "../../channels/plugins/onboarding/imessage.js";
 import { signalOnboardingAdapter } from "../../channels/plugins/onboarding/signal.js";
@@ -15,6 +16,7 @@ const BUILTIN_ONBOARDING_ADAPTERS: ChannelOnboardingAdapter[] = [
   slackOnboardingAdapter,
   signalOnboardingAdapter,
   imessageOnboardingAdapter,
+  dingtalkOnboardingAdapter,
 ];
 
 const CHANNEL_ONBOARDING_ADAPTERS = () => {
