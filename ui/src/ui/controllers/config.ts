@@ -36,8 +36,14 @@ export type ConfigState = {
   lastError: string | null;
 };
 
-export async function loadConfig(state: ConfigState) {
+const MAX_RETRY_ATTEMPTS = 5;
+const RETRY_INTERVAL_MS = 1000;
+
+export async function loadConfig(state: ConfigState, _retryCount = 0) {
   if (!state.client || !state.connected) {
+    if (state.client && _retryCount < MAX_RETRY_ATTEMPTS) {
+      setTimeout(() => loadConfig(state, _retryCount + 1), RETRY_INTERVAL_MS);
+    }
     return;
   }
   state.configLoading = true;
@@ -52,8 +58,11 @@ export async function loadConfig(state: ConfigState) {
   }
 }
 
-export async function loadConfigSchema(state: ConfigState) {
+export async function loadConfigSchema(state: ConfigState, _retryCount = 0) {
   if (!state.client || !state.connected) {
+    if (state.client && _retryCount < MAX_RETRY_ATTEMPTS) {
+      setTimeout(() => loadConfigSchema(state, _retryCount + 1), RETRY_INTERVAL_MS);
+    }
     return;
   }
   if (state.configSchemaLoading) {
